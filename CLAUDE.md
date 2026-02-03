@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a single-page personal CV website for Adrian Luerssen Medina, a Data Scientist. It's a static site built with vanilla HTML, CSS, and JavaScript with no build tools or dependencies (except Google Fonts CDN).
+This is a single-page personal CV website for Adrian Luerssen Medina, a Backend Engineer and Data Scientist. It's a static site built with vanilla HTML, CSS, and JavaScript with no build tools or dependencies (except Google Fonts CDN).
 
 **Tech Stack**: Pure HTML5, CSS3, vanilla JavaScript
 **Deployment Target**: GitHub Pages (or any static hosting)
-**Design Philosophy**: Premium dark theme with indigo/purple accents, inspired by high-end design agencies
+**Design Philosophy**: Premium dark theme with emerald green pipeline aesthetics, featuring a Git-style branching timeline to visualize parallel work/education activities
 
 ## Development Workflow
 
@@ -46,11 +46,12 @@ This site deploys to GitHub Pages:
 All colors, spacing, and transitions are defined as CSS variables in `:root` (styles.css:1-17):
 
 **Key Variables**:
-- `--accent-primary: #6366f1` (indigo) - Primary brand color
-- `--accent-secondary: #8b5cf6` (purple) - Secondary accent
-- `--accent-gradient` - Indigo to purple gradient used for CTAs
+- `--accent-primary: #10b981` (emerald green) - Primary brand color for pipeline/work theme
+- `--accent-secondary: #059669` (forest green) - Secondary accent
+- `--accent-gradient` - Green gradient used for CTAs and work tracks
 - `--bg-primary: #0a0a0a` - Main background (deep black)
 - `--text-secondary: #a0a0a0` - Body text color
+- Education items use blue (`#3b82f6`) to distinguish from work items
 
 **When changing brand colors**, only update these variables to maintain consistency throughout the site.
 
@@ -80,22 +81,42 @@ Each section follows this pattern in index.html:
 ```
 
 **Key Sections**:
-1. **Hero** (lines 28-52): Full-height intro with CTA buttons and floating visual element
-2. **About** (lines 55-95): Two-column grid with text + image placeholder, includes statistics
-3. **Experience** (lines 98-163): Vertical timeline with gradient line and markers
-4. **Expertise** (lines 166-222): 2x2 grid of cards with SVG icons
-5. **Contact** (lines 225-269): Two-column with contact info + form
+1. **Hero**: Full-height intro with CTA buttons and animated pipeline visualization showing Data → Process → Insights flow with particles
+2. **About**: Two-column grid with professional summary and GPA statistics (MSc: 9.5, BSc: 8.8)
+3. **Journey** (Experience + Education merged): Git-style branching timeline visualization showing parallel work and education activities
+4. **Expertise**: 2x2 grid of cards focused on data pipeline engineering, backend development, database architecture, and data science
+5. **Projects**: Notable projects including BCome LCA automation, RETABIT pipeline, and RGF data analysis
+6. **Contact**: Two-column with contact info + form
 
 ### Animation System
 
 All animations use **IntersectionObserver API** (script.js:33-70) for performance:
 
 - **Fade-in on scroll**: Sections animate when entering viewport
-- **Timeline slide-in**: Experience items slide from left sequentially
+- **Git timeline nodes**: Each node animates in with `nodeAppear` animation
+- **Pipeline flow**: Animated particles flowing through the hero pipeline visualization
 - **Parallax**: Hero section has parallax scrolling effect
 - **Hover effects**: Cards scale and change border color
 
 **Performance Note**: Animations use `transform` and `opacity` (GPU-accelerated) rather than layout properties.
+
+### Git-Style Timeline Architecture
+
+The Journey section uses a unique Git network graph visualization (`.git-timeline`):
+
+- **SVG Branch Lines**: Color-coded branches (green for work, blue for education) showing parallel activities
+- **Positioned Nodes**: Cards positioned at different horizontal offsets (25%, 45%, 67%) to prevent overlap
+- **Vertical Spacing**: 200-350px between nodes for clear separation
+- **Timeline Height**: 2000px container with responsive adjustments
+- **Branch Visualization**: Shows when activities start, run in parallel, and merge
+- **Node Cards**: `.node-card` elements with `.work-card` or `.edu-card` classes, containing position details and tech tags
+
+**Implementation Details**:
+- Main timeline line runs down the left at 15% horizontal position
+- Work branches extend to 30% horizontal position (green)
+- Education branches extend to 55% and 80% horizontal positions (blue)
+- Cards positioned absolutely with inline styles for precise placement
+- Responsive mode simplifies to single column on mobile
 
 ## Common Editing Tasks
 
@@ -142,39 +163,73 @@ Recommended dimensions: 600x800px (3:4 ratio), <200KB optimized JPG/WebP
 
 ### Changing Brand Colors
 
-Update CSS variables in styles.css:2-16. Common color scheme alternatives:
+Current theme uses green for pipeline/data engineering aesthetic. Update CSS variables in styles.css:2-16. Common color scheme alternatives:
 
 ```css
+/* Current - Green/Emerald (Pipeline theme) */
+--accent-primary: #10b981;
+--accent-secondary: #059669;
+
 /* Blue/Cyan */
 --accent-primary: #06b6d4;
 --accent-secondary: #0284c7;
-
-/* Green/Emerald */
---accent-primary: #10b981;
---accent-secondary: #059669;
 
 /* Orange/Red */
 --accent-primary: #f97316;
 --accent-secondary: #dc2626;
 ```
 
-### Adding a New Section
+Note: Education tracks use hardcoded blue (`#3b82f6`) for visual distinction - search and replace if changing theme.
 
-Insert between existing sections, following the standard structure:
+### Modifying the Git Timeline
 
-```html
-<section id="projects" class="projects">
-    <div class="container">
-        <div class="section-header">
-            <span class="section-label">My Work</span>
-            <h2 class="section-title">Projects</h2>
-        </div>
-        <!-- Content here -->
-    </div>
-</section>
+The timeline in the Journey section is **dynamically generated from a data array** in `script.js`. This ensures scalability and prevents layout issues.
+
+**To add/modify timeline entries**:
+
+1. **Edit the `timelineData` array** in `script.js` (around line 220)
+2. **Add a new object** with this structure:
+
+```javascript
+{
+    type: 'work',  // or 'education'
+    startDate: '2024-10',  // Format: YYYY-MM
+    endDate: 'present',    // Format: YYYY-MM or 'present'
+    title: 'Position Title',
+    organization: 'Company Name',
+    description: 'Detailed description of the role and achievements.',
+    tags: ['Technology 1', 'Technology 2', 'Technology 3'],
+    logo: '🏢'  // Emoji or path to image file
+}
 ```
 
-Add corresponding styles in styles.css and update navigation links in index.html:18-23.
+3. **The system automatically**:
+   - Sorts entries by date (newest first)
+   - Calculates vertical spacing (280px between items)
+   - Assigns horizontal positions based on type
+   - Prevents overlaps when multiple items run concurrently
+   - Generates SVG branch lines
+   - Creates hover interactions
+
+**How it works**:
+- Work items prefer left positions (25%, 45%, 65%)
+- Education items prefer right positions (50%, 70%)
+- Algorithm checks for vertical overlap and adjusts horizontally
+- Handles unlimited concurrent experiences automatically
+- Each entry shows logo + preview, expands on hover to show full details
+
+**Logo options**:
+- Use emoji for quick placeholder: `logo: '🏢'`
+- Use image path for company logos: `logo: '/assets/company-logo.png'`
+- Recommended size: 48x48px for images
+
+### Projects Section Layout
+
+Projects use a 2-column grid (styles.css `.projects-grid`):
+- Maximum 2 projects per row for proper card width
+- If odd number (3 projects), the last one spans both columns and centers
+- Each card maintains ~480px width for readability
+- Cards include: header with title/badge, description, impact highlight, and tech tags
 
 ### Enabling Contact Form Submission
 
@@ -242,11 +297,22 @@ Basic meta tags present (index.html:4-7). For enhanced SEO, consider adding:
 ## Content Guidelines
 
 When updating content:
-- **Hero description**: Keep to 2-3 sentences, focus on value proposition
+- **Hero description**: Keep to 2-3 sentences, focus on backend engineering + data science expertise
 - **About section**: Lead paragraph should be 2-3 sentences, followed by 1 supporting paragraph
-- **Experience**: Use action verbs, quantify achievements where possible
-- **Expertise cards**: Keep descriptions to 1-2 sentences
-- **Statistics**: Use round numbers (50+, 1M+, 99.9%) for impact
+- **Journey timeline**: Use action verbs, quantify achievements where possible. Always include tech tags.
+- **Expertise cards**: Keep descriptions to 1-2 sentences focused on Airflow, Dagster, NestJS, PostgreSQL, etc.
+- **Statistics**: Display actual GPAs (9.5 for MSc, 8.8 for BSc) and years of experience
+- **Projects**: Include impact statements with measurable outcomes
+
+## Key Technologies Featured
+
+Adrian's tech stack emphasizes data engineering and backend development:
+- **Data Pipelines**: Apache Airflow, Dagster, DBT
+- **Backend**: Node.js, TypeScript, NestJS, Python
+- **Databases**: PostgreSQL, database schema design
+- **Cloud**: AWS deployment and infrastructure
+- **Data Science**: Machine Learning, PowerBI, R, predictive analytics
+- **Other**: REST APIs, data security, system scalability
 
 ## Maintenance
 
