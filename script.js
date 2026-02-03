@@ -131,6 +131,177 @@ window.addEventListener('resize', () => {
 });
 
 // ============================================
+// INFINITE CIRCULAR SCROLL TAGS (Desktop)
+// ============================================
+const tagsScrollAnimations = new Map();
+const tagsScrollPositions = new Map();
+const isTagsPaused = new Map();
+
+// Initialize scroll for a single tags wrapper (used for hover-revealed tags)
+function initSingleTagsScroll(wrapper) {
+    if (!wrapper || tagsScrollAnimations.has(wrapper)) return; // Already initialized
+    
+    const isDesktop = window.innerWidth > 768;
+    if (!isDesktop) return;
+    
+    const tagsContainer = wrapper.querySelector('.timeline-tags');
+    if (!tagsContainer) return;
+
+    // Remove any previously cloned items
+    tagsContainer.querySelectorAll('.tag-clone').forEach(clone => clone.remove());
+
+    const tags = Array.from(tagsContainer.querySelectorAll('.tag:not(.tag-clone)'));
+    if (tags.length === 0) return;
+
+    // Check if tags overflow the container
+    const wrapperWidth = wrapper.offsetWidth;
+    const tagsWidth = tagsContainer.scrollWidth;
+    
+    if (tagsWidth <= wrapperWidth) {
+        wrapper.style.maskImage = 'none';
+        wrapper.style.webkitMaskImage = 'none';
+        return;
+    }
+
+    // Get computed gap value
+    const computedStyle = getComputedStyle(tagsContainer);
+    const gap = parseFloat(computedStyle.gap) || 6.4;
+
+    // Clone items to ensure seamless loop
+    for (let i = 0; i < tags.length; i++) {
+        const clone = tags[i].cloneNode(true);
+        clone.classList.add('tag-clone');
+        clone.setAttribute('aria-hidden', 'true');
+        tagsContainer.appendChild(clone);
+    }
+
+    tagsScrollPositions.set(wrapper, 0);
+    isTagsPaused.set(wrapper, false);
+
+    const scrollSpeed = 0.15; // pixels per frame (slower for readability)
+    let currentFirstItemWidth = tagsContainer.firstElementChild.offsetWidth + gap;
+
+    function animate() {
+        if (!isTagsPaused.get(wrapper)) {
+            let pos = tagsScrollPositions.get(wrapper) + scrollSpeed;
+
+            if (pos >= currentFirstItemWidth) {
+                pos -= currentFirstItemWidth;
+                const firstItem = tagsContainer.firstElementChild;
+                tagsContainer.appendChild(firstItem);
+                currentFirstItemWidth = tagsContainer.firstElementChild.offsetWidth + gap;
+            }
+
+            tagsScrollPositions.set(wrapper, pos);
+            tagsContainer.style.transform = `translateX(-${pos}px)`;
+        }
+
+        tagsScrollAnimations.set(wrapper, requestAnimationFrame(animate));
+    }
+
+    tagsScrollAnimations.set(wrapper, requestAnimationFrame(animate));
+
+    // Note: Don't pause on hover for timeline cards since they're already hovered to be visible
+}
+
+function initTagsInfiniteScroll() {
+    // Only init for visible wrappers (project cards, not hidden timeline card tags)
+    const tagsWrappers = document.querySelectorAll('.projects .tags-wrapper');
+    if (tagsWrappers.length === 0) return;
+
+    const isDesktop = window.innerWidth > 768;
+
+    // Cancel any existing animations for project cards
+    tagsScrollAnimations.forEach((anim, wrapper) => {
+        if (anim) cancelAnimationFrame(anim);
+    });
+    tagsScrollAnimations.clear();
+    tagsScrollPositions.clear();
+    isTagsPaused.clear();
+
+    tagsWrappers.forEach((wrapper) => {
+        const tagsContainer = wrapper.querySelector('.timeline-tags');
+        if (!tagsContainer) return;
+
+        // Remove any previously cloned items
+        tagsContainer.querySelectorAll('.tag-clone').forEach(clone => clone.remove());
+
+        // Reset transform and styles
+        tagsContainer.style.transform = '';
+        wrapper.style.maskImage = '';
+        wrapper.style.webkitMaskImage = '';
+        tagsScrollPositions.set(wrapper, 0);
+        isTagsPaused.set(wrapper, false);
+
+        if (isDesktop) {
+            const tags = Array.from(tagsContainer.querySelectorAll('.tag:not(.tag-clone)'));
+            if (tags.length === 0) return;
+
+            // Check if tags overflow the container - only scroll if they do
+            const wrapperWidth = wrapper.offsetWidth;
+            const tagsWidth = tagsContainer.scrollWidth;
+            
+            if (tagsWidth <= wrapperWidth) {
+                // All tags fit, no need to scroll - remove mask effect too
+                wrapper.style.maskImage = 'none';
+                wrapper.style.webkitMaskImage = 'none';
+                return;
+            }
+
+            // Get computed gap value
+            const computedStyle = getComputedStyle(tagsContainer);
+            const gap = parseFloat(computedStyle.gap) || 6.4;
+
+            // Clone items to ensure seamless loop
+            for (let i = 0; i < tags.length; i++) {
+                const clone = tags[i].cloneNode(true);
+                clone.classList.add('tag-clone');
+                clone.setAttribute('aria-hidden', 'true');
+                tagsContainer.appendChild(clone);
+            }
+
+            const scrollSpeed = 0.15; // pixels per frame (slower for readability)
+            let currentFirstItemWidth = tagsContainer.firstElementChild.offsetWidth + gap;
+
+            function animate() {
+                if (!isTagsPaused.get(wrapper)) {
+                    let pos = tagsScrollPositions.get(wrapper) + scrollSpeed;
+
+                    // When first item is fully scrolled out, move it to the end
+                    if (pos >= currentFirstItemWidth) {
+                        pos -= currentFirstItemWidth;
+                        const firstItem = tagsContainer.firstElementChild;
+                        tagsContainer.appendChild(firstItem);
+                        currentFirstItemWidth = tagsContainer.firstElementChild.offsetWidth + gap;
+                    }
+
+                    tagsScrollPositions.set(wrapper, pos);
+                    tagsContainer.style.transform = `translateX(-${pos}px)`;
+                }
+
+                tagsScrollAnimations.set(wrapper, requestAnimationFrame(animate));
+            }
+
+            // Start animation
+            tagsScrollAnimations.set(wrapper, requestAnimationFrame(animate));
+
+            // Pause on hover
+            wrapper.addEventListener('mouseenter', () => { isTagsPaused.set(wrapper, true); });
+            wrapper.addEventListener('mouseleave', () => { isTagsPaused.set(wrapper, false); });
+        }
+    });
+}
+
+// Initialize on load and resize
+document.addEventListener('DOMContentLoaded', initTagsInfiniteScroll);
+
+let tagsResizeTimeout;
+window.addEventListener('resize', () => {
+    clearTimeout(tagsResizeTimeout);
+    tagsResizeTimeout = setTimeout(initTagsInfiniteScroll, 250);
+});
+
+// ============================================
 // SMOOTH SCROLL & NAVIGATION
 // ============================================
 
@@ -973,8 +1144,10 @@ function generateTimeline() {
                 <div class="node-details-preview">Hover for details...</div>
                 <div class="node-details-full">
                     <p class="node-desc">${item.description}</p>
-                    <div class="timeline-tags">
-                        ${item.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                    <div class="tags-wrapper">
+                        <div class="timeline-tags">
+                            ${item.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -999,10 +1172,18 @@ function generateTimeline() {
         // Hover interaction
         const preview = node.querySelector('.node-details-preview');
         const full = node.querySelector('.node-details-full');
+        const tagsWrapper = node.querySelector('.tags-wrapper');
+        let tagsInitialized = false;
 
         node.addEventListener('mouseenter', () => {
             preview.style.display = 'none';
             full.style.display = 'block';
+            
+            // Initialize tags scroll on first hover (when tags are visible)
+            if (!tagsInitialized && tagsWrapper) {
+                tagsInitialized = true;
+                setTimeout(() => initSingleTagsScroll(tagsWrapper), 50);
+            }
         });
 
         node.addEventListener('mouseleave', () => {
@@ -1079,8 +1260,10 @@ function generateMobileTimeline(container) {
                 </div>
                 <div class="node-details-full">
                     <p class="node-desc">${item.description}</p>
-                    <div class="timeline-tags">
-                        ${item.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                    <div class="tags-wrapper">
+                        <div class="timeline-tags">
+                            ${item.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1093,7 +1276,11 @@ function generateMobileTimeline(container) {
 }
 
 // Initialize timeline on load and handle resize
-document.addEventListener('DOMContentLoaded', generateTimeline);
+document.addEventListener('DOMContentLoaded', () => {
+    generateTimeline();
+    // Reinitialize tags scroll after timeline is generated
+    setTimeout(initTagsInfiniteScroll, 100);
+});
 
 // Regenerate timeline on resize (debounced)
 let resizeTimeout;
@@ -1101,5 +1288,7 @@ window.addEventListener('resize', () => {
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(() => {
         generateTimeline();
+        // Reinitialize tags scroll after timeline is regenerated
+        setTimeout(initTagsInfiniteScroll, 100);
     }, 250);
 });
