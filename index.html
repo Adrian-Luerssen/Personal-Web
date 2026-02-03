@@ -2,8 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="Adrian Luerssen Medina - Backend Engineer & Data Scientist specializing in data pipelines, PostgreSQL, Node.js/TypeScript, and scalable backend systems">
+    <meta name="theme-color" content="#0a0a0a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Adrian Luerssen Medina | Backend Engineer & Data Scientist</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,6 +18,13 @@
     <nav class="nav">
         <div class="nav-container">
             <a href="#" class="logo">ALM</a>
+            <button class="mobile-menu-toggle" aria-label="Toggle menu" aria-expanded="false">
+                <div class="hamburger">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </button>
             <div class="nav-links">
                 <a href="#about" class="nav-link">About</a>
                 <a href="#journey" class="nav-link">Journey</a>
@@ -22,6 +32,7 @@
                 <a href="#projects" class="nav-link">Projects</a>
                 <a href="#contact" class="nav-link">Contact</a>
             </div>
+            <div class="nav-overlay"></div>
         </div>
     </nav>
 

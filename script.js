@@ -1,3 +1,66 @@
+// ============================================
+// MOBILE NAVIGATION MENU
+// ============================================
+const mobileMenuToggle = document.querySelector('.mobile-menu-toggle');
+const navLinks = document.querySelector('.nav-links');
+const navOverlay = document.querySelector('.nav-overlay');
+const body = document.body;
+
+function toggleMobileMenu() {
+    const isOpen = mobileMenuToggle.classList.contains('active');
+    
+    mobileMenuToggle.classList.toggle('active');
+    navLinks.classList.toggle('active');
+    navOverlay.classList.toggle('active');
+    mobileMenuToggle.setAttribute('aria-expanded', !isOpen);
+    
+    // Prevent body scroll when menu is open
+    if (!isOpen) {
+        body.style.overflow = 'hidden';
+    } else {
+        body.style.overflow = '';
+    }
+}
+
+function closeMobileMenu() {
+    mobileMenuToggle.classList.remove('active');
+    navLinks.classList.remove('active');
+    navOverlay.classList.remove('active');
+    mobileMenuToggle.setAttribute('aria-expanded', 'false');
+    body.style.overflow = '';
+}
+
+if (mobileMenuToggle) {
+    mobileMenuToggle.addEventListener('click', toggleMobileMenu);
+}
+
+if (navOverlay) {
+    navOverlay.addEventListener('click', closeMobileMenu);
+}
+
+// Close mobile menu when a nav link is clicked
+document.querySelectorAll('.nav-link').forEach(link => {
+    link.addEventListener('click', closeMobileMenu);
+});
+
+// Close mobile menu on escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && navLinks.classList.contains('active')) {
+        closeMobileMenu();
+    }
+});
+
+// Close mobile menu on window resize to desktop
+window.addEventListener('resize', () => {
+    if (window.innerWidth > 968 && navLinks.classList.contains('active')) {
+        closeMobileMenu();
+    }
+});
+
+// ============================================
+// SMOOTH SCROLL & NAVIGATION
+// ============================================
+
 // Smooth scroll behavior for navigation links
 document.querySelectorAll('a[href^="#"]').forEach(anchor => {
     anchor.addEventListener('click', function (e) {
@@ -114,19 +177,23 @@ if (contactForm) {
     });
 }
 
-// Add parallax effect to hero section
-window.addEventListener('scroll', () => {
-    const scrolled = window.pageYOffset;
-    const heroContent = document.querySelector('.hero-content');
-    if (heroContent && scrolled < window.innerHeight) {
-        heroContent.style.transform = `translateY(${scrolled * 0.3}px)`;
-        heroContent.style.opacity = 1 - (scrolled / window.innerHeight) * 0.5;
-    }
-});
+// Add parallax effect to hero section (desktop only for performance)
+const isMobile = window.innerWidth <= 968 || 'ontouchstart' in window;
+
+if (!isMobile) {
+    window.addEventListener('scroll', () => {
+        const scrolled = window.pageYOffset;
+        const heroContent = document.querySelector('.hero-content');
+        if (heroContent && scrolled < window.innerHeight) {
+            heroContent.style.transform = `translateY(${scrolled * 0.3}px)`;
+            heroContent.style.opacity = 1 - (scrolled / window.innerHeight) * 0.5;
+        }
+    });
+}
 
 // Active nav link on scroll
 const sections = document.querySelectorAll('section[id]');
-const navLinks = document.querySelectorAll('.nav-link');
+const allNavLinks = document.querySelectorAll('.nav-link');
 
 window.addEventListener('scroll', () => {
     let current = '';
@@ -139,7 +206,7 @@ window.addEventListener('scroll', () => {
         }
     });
 
-    navLinks.forEach(link => {
+    allNavLinks.forEach(link => {
         link.style.color = 'var(--text-secondary)';
         if (link.getAttribute('href') === `#${current}`) {
             link.style.color = 'var(--text-primary)';
@@ -201,8 +268,9 @@ const createCursorFollower = () => {
     });
 };
 
-// Initialize cursor follower on desktop only
-if (window.innerWidth > 968) {
+// Initialize cursor follower on desktop only (not touch devices)
+const isDesktopWithMouse = window.innerWidth > 968 && !('ontouchstart' in window) && window.matchMedia('(hover: hover)').matches;
+if (isDesktopWithMouse) {
     createCursorFollower();
 }
 
@@ -333,12 +401,25 @@ function formatDateRange(start, end) {
     return `${startStr} - ${endStr}`;
 }
 
+// Check if we're on mobile
+function isMobileView() {
+    return window.innerWidth <= 768;
+}
+
 function generateTimeline() {
     const container = document.querySelector('.git-timeline');
     if (!container) return;
 
     // Clear existing content
     container.innerHTML = '';
+
+    // Check if mobile - use simplified layout
+    if (isMobileView()) {
+        generateMobileTimeline(container);
+        return;
+    }
+
+    // Desktop version continues below...
 
     // Parse all dates and find the range
     const allDates = [];
@@ -877,5 +958,75 @@ function generateTimeline() {
     container.insertBefore(legend, container.firstChild);
 }
 
-// Initialize timeline on load
+// ============================================
+// MOBILE TIMELINE - Simplified Card Stack
+// ============================================
+function generateMobileTimeline(container) {
+    // Sort by start date (most recent first)
+    const sortedData = [...timelineData].sort((a, b) => 
+        parseDate(b.startDate) - parseDate(a.startDate)
+    );
+
+    // Add legend
+    const legend = document.createElement('div');
+    legend.classList.add('timeline-legend');
+    legend.innerHTML = `
+        <div class="legend-item">
+            <span class="legend-dot work-dot"></span>
+            <span>Work</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-dot edu-dot"></span>
+            <span>Education</span>
+        </div>
+    `;
+    container.appendChild(legend);
+
+    // Create cards container
+    const cardsContainer = document.createElement('div');
+    cardsContainer.classList.add('timeline-nodes');
+
+    // Create simple card for each item
+    sortedData.forEach(item => {
+        const isWork = item.type === 'work';
+        const cardClass = isWork ? 'work-card' : 'edu-card';
+
+        const node = document.createElement('div');
+        node.classList.add('timeline-node');
+
+        node.innerHTML = `
+            <div class="node-card ${cardClass}">
+                <div class="node-header">
+                    <span class="node-logo">${item.logo}</span>
+                    <div class="node-header-text">
+                        <span class="node-date">${formatDateRange(item.startDate, item.endDate)}</span>
+                        <h3>${item.title}</h3>
+                        <p class="node-org">${item.organization}</p>
+                    </div>
+                </div>
+                <div class="node-details-full">
+                    <p class="node-desc">${item.description}</p>
+                    <div class="timeline-tags">
+                        ${item.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        cardsContainer.appendChild(node);
+    });
+
+    container.appendChild(cardsContainer);
+}
+
+// Initialize timeline on load and handle resize
 document.addEventListener('DOMContentLoaded', generateTimeline);
+
+// Regenerate timeline on resize (debounced)
+let resizeTimeout;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        generateTimeline();
+    }, 250);
+});
