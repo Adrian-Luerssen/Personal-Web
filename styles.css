@@ -551,9 +551,36 @@ section {
     border-radius: 12px;
     padding: 1rem 1.25rem;
     width: 100%;
+    min-width: 260px;
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
+}
+
+/* Hover state - expand horizontally */
+/* Right-side cards expand to the right (default) */
+.timeline-node.right-side .node-card {
+    transform-origin: left center;
+}
+
+.timeline-node.right-side:hover .node-card {
+    width: 340px;
+    min-width: 340px;
+}
+
+/* Left-side cards expand to the left */
+.timeline-node.left-side {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.timeline-node.left-side .node-card {
+    transform-origin: right center;
+}
+
+.timeline-node.left-side:hover .node-card {
+    width: 340px;
+    min-width: 340px;
 }
 
 .node-card::before {
@@ -573,10 +600,9 @@ section {
     background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
 }
 
-.timeline-node:hover .node-card {
+.timeline-node:hover .work-card {
     border-color: var(--accent-primary);
     box-shadow: 0 8px 24px rgba(16, 185, 129, 0.2);
-    transform: translateY(-4px);
 }
 
 .timeline-node:hover .edu-card {
@@ -633,8 +659,14 @@ section {
 
 .timeline-tags {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 0.4rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.timeline-tags::-webkit-scrollbar {
+    display: none;
 }
 
 .tag {
@@ -645,6 +677,8 @@ section {
     font-size: 0.7rem;
     color: var(--text-secondary);
     transition: var(--transition);
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .tag:hover {

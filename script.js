@@ -357,15 +357,15 @@ function generateTimeline() {
     // Configuration - COMPACT layout
     const pixelsPerMonth = 18;
     const mainLineX = 500; // Center the main line
-    const branchSpacing = 55;
+    const branchSpacing = 90; // Increased spacing between branches
     const nodeRadius = 6;
-    const cardWidth = 200;
+    const cardWidth = 260; // Wider cards for horizontal content
     const cardHeight = 120; // Account for card height + padding
-    const cardPadding = 15; // Gap between cards
+    const cardPadding = 25; // Increased gap between cards
 
     // Calculate total height based on time range
     // Account for legend offset at top
-    const legendOffset = 100;
+    const legendOffset = 80; // Reduced since legend is now outside the absolute container
     const totalMonths = (maxDate.getFullYear() - minDate.getFullYear()) * 12 + (maxDate.getMonth() - minDate.getMonth());
     const timelineHeight = totalMonths * pixelsPerMonth + legendOffset + 60; // +60 for bottom padding
 
@@ -473,7 +473,10 @@ function generateTimeline() {
     const leftPadding = (maxLeftLane + 1) * branchSpacing + cardWidth + 60;
     const totalWidth = Math.max(containerWidth, leftPadding + mainLineX);
     
-    container.style.minHeight = `${timelineHeight}px`;
+    // Height of the legend box at top
+    const legendHeight = 60;
+    
+    container.style.minHeight = `${timelineHeight + legendHeight}px`;
     container.style.width = `${totalWidth}px`;
     container.style.margin = '0 auto';
     container.style.position = 'relative';
@@ -484,7 +487,7 @@ function generateTimeline() {
     svg.setAttribute('height', timelineHeight);
     svg.style.position = 'absolute';
     svg.style.left = '0';
-    svg.style.top = '0';
+    svg.style.top = `${legendHeight}px`; // Position below legend
     svg.style.overflow = 'visible';
     svg.style.zIndex = '1';
 
@@ -747,9 +750,9 @@ function generateTimeline() {
     cardsContainer.classList.add('timeline-nodes');
     cardsContainer.style.position = 'absolute';
     cardsContainer.style.left = '0';
-    cardsContainer.style.top = '0';
+    cardsContainer.style.top = `${legendHeight}px`; // Position below legend
     cardsContainer.style.width = '100%';
-    cardsContainer.style.height = '100%';
+    cardsContainer.style.height = `${timelineHeight}px`;
     cardsContainer.style.zIndex = '2';
     cardsContainer.style.pointerEvents = 'none'; // Allow clicks to pass through to cards
 
@@ -769,22 +772,41 @@ function generateTimeline() {
         const midY = minY + (maxY - minY) / 2;
         
         // Card position depends on which side of the main line
+        // For left-side cards, position from the right edge so expansion goes left
         const cardX = item.isLeftSide 
             ? item.branchX - cardWidth - 15  // Left side: card to the left of branch
             : item.branchX + 15;              // Right side: card to the right of branch
+        
+        // Add side class for CSS to handle expansion direction
+        const sideClass = item.isLeftSide ? 'left-side' : 'right-side';
 
         const node = document.createElement('div');
-        node.classList.add('timeline-node');
+        node.classList.add('timeline-node', sideClass);
         // Use transform to vertically center the card on the midpoint
-        node.style.cssText = `
-            position: absolute;
-            left: ${cardX}px;
-            top: ${midY}px;
-            transform: translateY(-50%);
-            width: ${cardWidth}px;
-            z-index: 10;
-            pointer-events: auto;
-        `;
+        // For left-side cards, use right positioning instead of left
+        if (item.isLeftSide) {
+            // Position from the right edge of where the card should be
+            const rightEdgeX = item.branchX - 15;
+            node.style.cssText = `
+                position: absolute;
+                right: calc(100% - ${rightEdgeX}px);
+                top: ${midY}px;
+                transform: translateY(-50%);
+                width: ${cardWidth}px;
+                z-index: 10;
+                pointer-events: auto;
+            `;
+        } else {
+            node.style.cssText = `
+                position: absolute;
+                left: ${cardX}px;
+                top: ${midY}px;
+                transform: translateY(-50%);
+                width: ${cardWidth}px;
+                z-index: 10;
+                pointer-events: auto;
+            `;
+        }
 
         node.innerHTML = `
             <div class="node-card ${cardClass}">
