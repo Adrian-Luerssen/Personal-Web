@@ -58,6 +58,79 @@ window.addEventListener('resize', () => {
 });
 
 // ============================================
+// INFINITE CIRCULAR SCROLL STATS (Mobile)
+// ============================================
+let statsScrollAnimation = null;
+let statsScrollPosition = 0;
+let isStatsPaused = false;
+
+function initStatsInfiniteScroll() {
+    const statsWrapper = document.querySelector('.stats-wrapper');
+    const statsContainer = document.querySelector('.stats');
+    if (!statsContainer || !statsWrapper) return;
+
+    const isMobile = window.innerWidth <= 768;
+    
+    // Cancel any existing animation
+    if (statsScrollAnimation) {
+        cancelAnimationFrame(statsScrollAnimation);
+        statsScrollAnimation = null;
+    }
+    
+    // Reset transform
+    statsContainer.style.transform = '';
+    statsScrollPosition = 0;
+    
+    if (isMobile) {
+        const stats = Array.from(statsContainer.querySelectorAll('.stat'));
+        if (stats.length === 0) return;
+        
+        // Calculate item width including gap
+        const itemWidth = stats[0].offsetWidth;
+        const gap = 12; // 0.75rem
+        const itemTotalWidth = itemWidth + gap;
+        const totalWidth = stats.length * itemTotalWidth;
+        
+        const scrollSpeed = 0.5; // pixels per frame
+        
+        function animate() {
+            if (!isStatsPaused) {
+                statsScrollPosition += scrollSpeed;
+                
+                // When first item is fully scrolled out, move it to the end
+                if (statsScrollPosition >= itemTotalWidth) {
+                    statsScrollPosition -= itemTotalWidth;
+                    const firstItem = statsContainer.firstElementChild;
+                    statsContainer.appendChild(firstItem);
+                }
+                
+                statsContainer.style.transform = `translateX(-${statsScrollPosition}px)`;
+            }
+            
+            statsScrollAnimation = requestAnimationFrame(animate);
+        }
+        
+        // Start animation
+        statsScrollAnimation = requestAnimationFrame(animate);
+        
+        // Pause on touch/hover
+        statsWrapper.addEventListener('mouseenter', () => { isStatsPaused = true; });
+        statsWrapper.addEventListener('mouseleave', () => { isStatsPaused = false; });
+        statsWrapper.addEventListener('touchstart', () => { isStatsPaused = true; }, { passive: true });
+        statsWrapper.addEventListener('touchend', () => { isStatsPaused = false; }, { passive: true });
+    }
+}
+
+// Initialize on load and resize
+document.addEventListener('DOMContentLoaded', initStatsInfiniteScroll);
+
+let statsResizeTimeout;
+window.addEventListener('resize', () => {
+    clearTimeout(statsResizeTimeout);
+    statsResizeTimeout = setTimeout(initStatsInfiniteScroll, 250);
+});
+
+// ============================================
 // SMOOTH SCROLL & NAVIGATION
 // ============================================
 

@@ -463,13 +463,22 @@ section {
     line-height: 1.8;
 }
 
+/* Stats wrapper - transparent on desktop */
+.stats-wrapper {
+    margin-top: 3rem;
+    padding-top: 3rem;
+    border-top: 1px solid var(--border-color);
+}
+
 .stats {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 2rem;
-    margin-top: 3rem;
-    padding-top: 3rem;
-    border-top: 1px solid var(--border-color);
+}
+
+/* Hide cloned stats on desktop (they're only for mobile infinite scroll) */
+.stat-clone {
+    display: none;
 }
 
 .stat {
@@ -1402,17 +1411,52 @@ section {
         margin-bottom: 1.5rem;
     }
 
-    /* Stats - Horizontal Scroll Cards */
+    /* Stats - Auto-scrolling horizontal cards */
+    .stats-wrapper {
+        position: relative;
+        overflow: hidden;
+        margin: 1.5rem 0 0;
+        padding-top: 1.5rem;
+        padding-bottom: 1.5rem;
+        border-top: 1px solid var(--border-color);
+    }
+
+    /* Fade gradient on right side */
+    .stats-wrapper::after {
+        content: '';
+        position: absolute;
+        right: 0;
+        top: 1.5rem;
+        bottom: 1.5rem;
+        width: 30px;
+        background: linear-gradient(to right, transparent, var(--bg-secondary));
+        pointer-events: none;
+        z-index: 2;
+    }
+
+    /* Scroll indicator dots */
+    .stats-wrapper::before {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 40px;
+        height: 4px;
+        background: var(--border-color);
+        border-radius: 2px;
+        z-index: 3;
+    }
+
     .stats {
         display: flex;
         gap: 0.75rem;
-        overflow-x: auto;
-        scroll-snap-type: x mandatory;
-        -webkit-overflow-scrolling: touch;
-        padding: 1.5rem 0 1rem;
-        margin: 1.5rem 0 0;
+        padding: 0 0 0.5rem;
+        margin: 0;
         scrollbar-width: none;
-        border-top: 1px solid var(--border-color);
+        border-top: none;
+        width: max-content;
+        /* Animation handled by JavaScript for true circular scroll */
     }
 
     .stats::-webkit-scrollbar {
@@ -1426,7 +1470,6 @@ section {
         background: var(--card-bg);
         border: 1px solid var(--border-color);
         border-radius: 16px;
-        scroll-snap-align: start;
         text-align: center;
     }
 
