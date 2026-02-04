@@ -6,6 +6,126 @@ const navLinks = document.querySelector('.nav-links');
 const navOverlay = document.querySelector('.nav-overlay');
 const body = document.body;
 
+// ============================================
+// CONTACT FORM - Formspree Integration
+// ============================================
+
+// Toast notification system
+function showToast(message, type = 'success') {
+    // Remove any existing toasts
+    const existingToast = document.querySelector('.toast-notification');
+    if (existingToast) {
+        existingToast.remove();
+    }
+    
+    const toast = document.createElement('div');
+    toast.className = `toast-notification toast-${type}`;
+    toast.innerHTML = `
+        <div class="toast-icon">${type === 'success' ? '✓' : '✕'}</div>
+        <div class="toast-message">${message}</div>
+        <button class="toast-close" aria-label="Close">×</button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Trigger animation
+    requestAnimationFrame(() => {
+        toast.classList.add('toast-visible');
+    });
+    
+    // Close button
+    toast.querySelector('.toast-close').addEventListener('click', () => {
+        toast.classList.remove('toast-visible');
+        setTimeout(() => toast.remove(), 300);
+    });
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.classList.remove('toast-visible');
+            setTimeout(() => toast.remove(), 300);
+        }
+    }, 5000);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const contactForm = document.getElementById('contact-form');
+    const emailInput = document.getElementById('email');
+    const emailError = document.getElementById('email-error');
+    
+    // Email validation regex
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    
+    function validateEmail() {
+        const email = emailInput.value.trim();
+        
+        if (email === '') {
+            emailInput.classList.remove('valid', 'invalid');
+            emailError.textContent = '';
+            return false;
+        }
+        
+        if (!emailRegex.test(email)) {
+            emailInput.classList.remove('valid');
+            emailInput.classList.add('invalid');
+            emailError.textContent = 'Please enter a valid email address';
+            return false;
+        }
+        
+        emailInput.classList.remove('invalid');
+        emailInput.classList.add('valid');
+        emailError.textContent = '';
+        return true;
+    }
+    
+    if (emailInput) {
+        emailInput.addEventListener('input', validateEmail);
+        emailInput.addEventListener('blur', validateEmail);
+    }
+    
+    if (contactForm) {
+        contactForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Validate email before submission
+            if (!validateEmail()) {
+                emailInput.focus();
+                return;
+            }
+            
+            const submitBtn = contactForm.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Sending...';
+            submitBtn.disabled = true;
+            
+            const formData = new FormData(contactForm);
+            
+            try {
+                const response = await fetch('https://formspree.io/f/xnjzelby', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    showToast('Message sent successfully! I\'ll get back to you soon.', 'success');
+                    contactForm.reset();
+                    emailInput.classList.remove('valid', 'invalid');
+                } else {
+                    throw new Error('Failed to send message');
+                }
+            } catch (error) {
+                showToast('Failed to send message. Please try emailing me directly.', 'error');
+            } finally {
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            }
+        });
+    }
+});
+
 function toggleMobileMenu() {
     const isOpen = mobileMenuToggle.classList.contains('active');
     
@@ -390,36 +510,6 @@ timelineItems.forEach(item => {
     item.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
     timelineObserver.observe(item);
 });
-
-// Form submission handler
-const contactForm = document.querySelector('.contact-form');
-if (contactForm) {
-    contactForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-
-        // Get form data
-        const formData = new FormData(this);
-        const data = Object.fromEntries(formData);
-
-        // In a real implementation, you would send this to a backend
-        console.log('Form submitted:', data);
-
-        // Show success message
-        const button = this.querySelector('button[type="submit"]');
-        const originalText = button.textContent;
-        button.textContent = 'Message Sent!';
-        button.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
-
-        // Reset form
-        this.reset();
-
-        // Reset button after 3 seconds
-        setTimeout(() => {
-            button.textContent = originalText;
-            button.style.background = '';
-        }, 3000);
-    });
-}
 
 // Add parallax effect to hero section (desktop only for performance)
 const isMobile = window.innerWidth <= 968 || 'ontouchstart' in window;
