@@ -20,11 +20,23 @@ function showToast(message, type = 'success') {
     
     const toast = document.createElement('div');
     toast.className = `toast-notification toast-${type}`;
-    toast.innerHTML = `
-        <div class="toast-icon">${type === 'success' ? '✓' : '✕'}</div>
-        <div class="toast-message">${message}</div>
-        <button class="toast-close" aria-label="Close">×</button>
-    `;
+
+    const icon = document.createElement('div');
+    icon.className = 'toast-icon';
+    icon.textContent = type === 'success' ? '✓' : '✕';
+
+    const msg = document.createElement('div');
+    msg.className = 'toast-message';
+    msg.textContent = message;
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'toast-close';
+    closeBtn.setAttribute('aria-label', 'Close');
+    closeBtn.textContent = '×';
+
+    toast.appendChild(icon);
+    toast.appendChild(msg);
+    toast.appendChild(closeBtn);
     
     document.body.appendChild(toast);
     
@@ -48,7 +60,7 @@ function showToast(message, type = 'success') {
     }, 5000);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function initContactForm() {
     const contactForm = document.getElementById('contact-form');
     const emailInput = document.getElementById('email');
     const emailError = document.getElementById('email-error');
@@ -124,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-});
+}
 
 function toggleMobileMenu() {
     const isOpen = mobileMenuToggle.classList.contains('active');
@@ -183,6 +195,7 @@ window.addEventListener('resize', () => {
 let statsScrollAnimation = null;
 let statsScrollPosition = 0;
 let isStatsPaused = false;
+let statsAbortController = null;
 
 function initStatsInfiniteScroll() {
     const statsWrapper = document.querySelector('.stats-wrapper');
@@ -190,59 +203,62 @@ function initStatsInfiniteScroll() {
     if (!statsContainer || !statsWrapper) return;
 
     const isMobile = window.innerWidth <= 768;
-    
-    // Cancel any existing animation
+
+    // Cancel any existing animation and listeners
     if (statsScrollAnimation) {
         cancelAnimationFrame(statsScrollAnimation);
         statsScrollAnimation = null;
     }
-    
+    if (statsAbortController) {
+        statsAbortController.abort();
+    }
+
     // Reset transform
     statsContainer.style.transform = '';
     statsScrollPosition = 0;
-    
-    if (isMobile) {
+
+    if (isMobile && !prefersReducedMotion) {
         const stats = Array.from(statsContainer.querySelectorAll('.stat'));
         if (stats.length === 0) return;
-        
+
         // Calculate item width including gap
         const itemWidth = stats[0].offsetWidth;
         const gap = 12; // 0.75rem
         const itemTotalWidth = itemWidth + gap;
-        const totalWidth = stats.length * itemTotalWidth;
-        
+
         const scrollSpeed = 0.5; // pixels per frame
-        
+
         function animate() {
             if (!isStatsPaused) {
                 statsScrollPosition += scrollSpeed;
-                
+
                 // When first item is fully scrolled out, move it to the end
                 if (statsScrollPosition >= itemTotalWidth) {
                     statsScrollPosition -= itemTotalWidth;
                     const firstItem = statsContainer.firstElementChild;
                     statsContainer.appendChild(firstItem);
                 }
-                
+
                 statsContainer.style.transform = `translateX(-${statsScrollPosition}px)`;
             }
-            
+
             statsScrollAnimation = requestAnimationFrame(animate);
         }
-        
+
         // Start animation
         statsScrollAnimation = requestAnimationFrame(animate);
-        
-        // Pause on touch/hover
-        statsWrapper.addEventListener('mouseenter', () => { isStatsPaused = true; });
-        statsWrapper.addEventListener('mouseleave', () => { isStatsPaused = false; });
-        statsWrapper.addEventListener('touchstart', () => { isStatsPaused = true; }, { passive: true });
-        statsWrapper.addEventListener('touchend', () => { isStatsPaused = false; }, { passive: true });
+
+        // Pause on touch/hover (with AbortController to prevent listener leaks)
+        statsAbortController = new AbortController();
+        const signal = statsAbortController.signal;
+        statsWrapper.addEventListener('mouseenter', () => { isStatsPaused = true; }, { signal });
+        statsWrapper.addEventListener('mouseleave', () => { isStatsPaused = false; }, { signal });
+        statsWrapper.addEventListener('touchstart', () => { isStatsPaused = true; }, { passive: true, signal });
+        statsWrapper.addEventListener('touchend', () => { isStatsPaused = false; }, { passive: true, signal });
     }
 }
 
-// Initialize on load and resize
-document.addEventListener('DOMContentLoaded', initStatsInfiniteScroll);
+// Stats scroll initialized in consolidated DOMContentLoaded below
 
 let statsResizeTimeout;
 window.addEventListener('resize', () => {
@@ -256,6 +272,7 @@ window.addEventListener('resize', () => {
 const tagsScrollAnimations = new Map();
 const tagsScrollPositions = new Map();
 const isTagsPaused = new Map();
+const tagsAbortControllers = new Map();
 
 // Initialize scroll for a single tags wrapper (used for hover-revealed tags)
 function initSingleTagsScroll(wrapper) {
@@ -331,13 +348,15 @@ function initTagsInfiniteScroll() {
 
     const isDesktop = window.innerWidth > 768;
 
-    // Cancel any existing animations for project cards
-    tagsScrollAnimations.forEach((anim, wrapper) => {
+    // Cancel any existing animations and listeners for project cards
+    tagsScrollAnimations.forEach((anim) => {
         if (anim) cancelAnimationFrame(anim);
     });
+    tagsAbortControllers.forEach((ac) => ac.abort());
     tagsScrollAnimations.clear();
     tagsScrollPositions.clear();
     isTagsPaused.clear();
+    tagsAbortControllers.clear();
 
     tagsWrappers.forEach((wrapper) => {
         const tagsContainer = wrapper.querySelector('.timeline-tags');
@@ -405,15 +424,16 @@ function initTagsInfiniteScroll() {
             // Start animation
             tagsScrollAnimations.set(wrapper, requestAnimationFrame(animate));
 
-            // Pause on hover
-            wrapper.addEventListener('mouseenter', () => { isTagsPaused.set(wrapper, true); });
-            wrapper.addEventListener('mouseleave', () => { isTagsPaused.set(wrapper, false); });
+            // Pause on hover (with AbortController to prevent listener leaks)
+            const ac = new AbortController();
+            tagsAbortControllers.set(wrapper, ac);
+            wrapper.addEventListener('mouseenter', () => { isTagsPaused.set(wrapper, true); }, { signal: ac.signal });
+            wrapper.addEventListener('mouseleave', () => { isTagsPaused.set(wrapper, false); }, { signal: ac.signal });
         }
     });
 }
 
-// Initialize on load and resize
-document.addEventListener('DOMContentLoaded', initTagsInfiniteScroll);
+// Tags scroll initialized in consolidated DOMContentLoaded below
 
 let tagsResizeTimeout;
 window.addEventListener('resize', () => {
@@ -439,25 +459,72 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
     });
 });
 
-// Navbar background on scroll
+// Navbar, parallax, active nav, and back-to-top — consolidated scroll handler
 const nav = document.querySelector('.nav');
-let lastScroll = 0;
+const sections = document.querySelectorAll('section[id]');
+const allNavLinks = document.querySelectorAll('.nav-link');
+const backToTopBtn = document.querySelector('.back-to-top');
+const isDeviceMobile = window.innerWidth <= 968 || 'ontouchstart' in window;
+const heroContent = !isDeviceMobile ? document.querySelector('.hero-content') : null;
+
+let scrollTicking = false;
 
 window.addEventListener('scroll', () => {
-    const currentScroll = window.pageYOffset;
+    if (!scrollTicking) {
+        requestAnimationFrame(() => {
+            const currentScroll = window.scrollY;
 
-    if (currentScroll > 100) {
-        nav.style.background = 'rgba(10, 10, 10, 0.95)';
-        nav.style.boxShadow = '0 2px 20px rgba(0, 0, 0, 0.3)';
-    } else {
-        nav.style.background = 'rgba(10, 10, 10, 0.8)';
-        nav.style.boxShadow = 'none';
+            // Navbar background
+            if (currentScroll > 100) {
+                nav.style.background = 'rgba(10, 10, 10, 0.95)';
+                nav.style.boxShadow = '0 2px 20px rgba(0, 0, 0, 0.3)';
+            } else {
+                nav.style.background = 'rgba(10, 10, 10, 0.8)';
+                nav.style.boxShadow = 'none';
+            }
+
+            // Parallax (desktop only)
+            if (heroContent && currentScroll < window.innerHeight) {
+                heroContent.style.transform = `translateY(${currentScroll * 0.3}px)`;
+                heroContent.style.opacity = 1 - (currentScroll / window.innerHeight) * 0.5;
+            }
+
+            // Active nav link
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (currentScroll >= (sectionTop - 200)) {
+                    current = section.getAttribute('id');
+                }
+            });
+            allNavLinks.forEach(link => {
+                link.style.color = 'var(--text-secondary)';
+                if (link.getAttribute('href') === `#${current}`) {
+                    link.style.color = 'var(--text-primary)';
+                }
+            });
+
+            // Back to top button
+            if (backToTopBtn) {
+                backToTopBtn.classList.toggle('visible', currentScroll > 500);
+            }
+
+            scrollTicking = false;
+        });
+        scrollTicking = true;
     }
-
-    lastScroll = currentScroll;
 });
 
+// Back to top click
+if (backToTopBtn) {
+    backToTopBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+}
+
 // Intersection Observer for fade-in animations
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 const observerOptions = {
     threshold: 0.1,
     rootMargin: '0px 0px -100px 0px'
@@ -474,77 +541,24 @@ const observer = new IntersectionObserver((entries) => {
 
 // Observe all sections for animations
 document.querySelectorAll('section').forEach(section => {
-    section.style.opacity = '0';
-    section.style.transform = 'translateY(30px)';
-    section.style.transition = 'opacity 0.8s ease-out, transform 0.8s ease-out';
-    observer.observe(section);
+    if (prefersReducedMotion) {
+        section.style.opacity = '1';
+    } else {
+        section.style.opacity = '0';
+        section.style.transform = 'translateY(30px)';
+        section.style.transition = 'opacity 0.8s ease-out, transform 0.8s ease-out';
+        observer.observe(section);
+    }
 });
 
 // Animate expertise cards on hover
 document.querySelectorAll('.expertise-card').forEach(card => {
     card.addEventListener('mouseenter', function() {
-        this.style.background = 'linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05))';
+        this.style.background = 'linear-gradient(135deg, rgba(16, 185, 129, 0.05), rgba(5, 150, 105, 0.05))';
     });
 
     card.addEventListener('mouseleave', function() {
         this.style.background = 'var(--card-bg)';
-    });
-});
-
-// Timeline animation on scroll
-const timelineItems = document.querySelectorAll('.timeline-item');
-const timelineObserver = new IntersectionObserver((entries) => {
-    entries.forEach((entry, index) => {
-        if (entry.isIntersecting) {
-            setTimeout(() => {
-                entry.target.style.opacity = '1';
-                entry.target.style.transform = 'translateX(0)';
-            }, index * 100);
-        }
-    });
-}, { threshold: 0.2 });
-
-timelineItems.forEach(item => {
-    item.style.opacity = '0';
-    item.style.transform = 'translateX(-30px)';
-    item.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
-    timelineObserver.observe(item);
-});
-
-// Add parallax effect to hero section (desktop only for performance)
-const isMobile = window.innerWidth <= 968 || 'ontouchstart' in window;
-
-if (!isMobile) {
-    window.addEventListener('scroll', () => {
-        const scrolled = window.pageYOffset;
-        const heroContent = document.querySelector('.hero-content');
-        if (heroContent && scrolled < window.innerHeight) {
-            heroContent.style.transform = `translateY(${scrolled * 0.3}px)`;
-            heroContent.style.opacity = 1 - (scrolled / window.innerHeight) * 0.5;
-        }
-    });
-}
-
-// Active nav link on scroll
-const sections = document.querySelectorAll('section[id]');
-const allNavLinks = document.querySelectorAll('.nav-link');
-
-window.addEventListener('scroll', () => {
-    let current = '';
-
-    sections.forEach(section => {
-        const sectionTop = section.offsetTop;
-        const sectionHeight = section.clientHeight;
-        if (pageYOffset >= (sectionTop - 200)) {
-            current = section.getAttribute('id');
-        }
-    });
-
-    allNavLinks.forEach(link => {
-        link.style.color = 'var(--text-secondary)';
-        if (link.getAttribute('href') === `#${current}`) {
-            link.style.color = 'var(--text-primary)';
-        }
     });
 });
 
@@ -556,7 +570,7 @@ const createCursorFollower = () => {
         width: 20px;
         height: 20px;
         border-radius: 50%;
-        background: radial-gradient(circle, rgba(99, 102, 241, 0.3), transparent);
+        background: radial-gradient(circle, rgba(16, 185, 129, 0.3), transparent);
         pointer-events: none;
         z-index: 9999;
         transition: transform 0.15s ease-out, opacity 0.3s ease-out;
@@ -602,20 +616,11 @@ const createCursorFollower = () => {
     });
 };
 
-// Initialize cursor follower on desktop only (not touch devices)
+// Initialize cursor follower on desktop only (not touch devices, not reduced motion)
 const isDesktopWithMouse = window.innerWidth > 968 && !('ontouchstart' in window) && window.matchMedia('(hover: hover)').matches;
-if (isDesktopWithMouse) {
+if (isDesktopWithMouse && !prefersReducedMotion) {
     createCursorFollower();
 }
-
-// Add loading animation
-window.addEventListener('load', () => {
-    document.body.style.opacity = '0';
-    requestAnimationFrame(() => {
-        document.body.style.transition = 'opacity 0.5s ease-in';
-        document.body.style.opacity = '1';
-    });
-});
 
 // ============================================
 // DYNAMIC GIT-STYLE TIMELINE GENERATION
@@ -652,7 +657,8 @@ const timelineData = [
         organization: 'BCome',
         description: 'Backend development and data analysis with PostgreSQL databases and scalable solutions.',
         tags: ['PostgreSQL', 'Python', 'Backend'],
-        logo: '🏢' // Replace with actual image path
+        logo: 'assets/logos/bcome.svg',
+        url: 'https://bcome.biz/'
     },
     {
         type: 'work',
@@ -662,7 +668,8 @@ const timelineData = [
         organization: 'IES Abroad',
         description: 'Tutoring in Data Mining, Computer Architecture, 3D Graphics, and Programming Languages.',
         tags: ['Teaching', 'Data Mining'],
-        logo: '🎓'
+        logo: 'assets/logos/iesabroad.ico',
+        url: 'https://www.iesabroad.org/'
     },
     {
         type: 'education',
@@ -672,7 +679,9 @@ const timelineData = [
         organization: 'La Salle BCN • GPA: 9.5',
         description: 'Exploratory data analysis, pipeline architecture, business intelligence—while working full-time.',
         tags: ['PowerBI', 'Machine Learning'],
-        logo: '🎓'
+        logo: 'assets/logos/lasalle.png',
+        url: 'https://www.salleurl.edu/en',
+        invertLogo: true
     },
     {
         type: 'work',
@@ -682,7 +691,8 @@ const timelineData = [
         organization: 'Weekn (Part-time)',
         description: 'Database schema optimization, Node.js/TypeScript development, data security.',
         tags: ['Node.js', 'TypeScript', 'PostgreSQL'],
-        logo: '💼'
+        logo: 'assets/logos/weekn.png',
+        url: 'https://www.weekn.app/'
     },
     {
         type: 'education',
@@ -692,7 +702,9 @@ const timelineData = [
         organization: 'La Salle BCN • GPA: 8.8',
         description: 'International program covering software development, databases, architecture, networking. Active in Social Club & LS Racing Team.',
         tags: ['C Programming', 'Java', 'Dagster', 'CCNA Certified'],
-        logo: '🎓'
+        logo: 'assets/logos/lasalle.png',
+        url: 'https://www.salleurl.edu/en',
+        invertLogo: true
     },
     {
         type: 'work',
@@ -702,7 +714,9 @@ const timelineData = [
         organization: 'La Salle BCN',
         description: 'Databases project with Catastro data for Barcelona province.',
         tags: ['Databases', 'Research'],
-        logo: '🔬'
+        logo: 'assets/logos/lasalle.png',
+        url: 'https://www.salleurl.edu/en',
+        invertLogo: true
     },
     {
         type: 'work',
@@ -712,7 +726,9 @@ const timelineData = [
         organization: 'La Salle BCN',
         description: '"Introduction to Computers" tutoring and practical support.',
         tags: ['Teaching', 'CS Fundamentals'],
-        logo: '👨‍🏫'
+        logo: 'assets/logos/lasalle.png',
+        url: 'https://www.salleurl.edu/en',
+        invertLogo: true
     }
 ];
 
@@ -815,9 +831,6 @@ function generateTimeline() {
             let assignedLane = null;
             
             for (let i = 1; i <= maxLanes && assignedLane === null; i++) {
-                // Alternate: right, left, right further, left further
-                const lanesToTry = i % 2 === 1 ? [Math.ceil(i/2), -Math.ceil(i/2)] : [-Math.ceil(i/2), Math.ceil(i/2)];
-                
                 for (const lane of [i, -i]) {
                     const isLeftSide = lane < 0;
                     const laneDistance = Math.abs(lane);
@@ -1027,9 +1040,8 @@ function generateTimeline() {
         const color = isWork ? '#10b981' : '#3b82f6';
         
         // Determine direction: if endY < startY, branch goes UP (toward present)
-        const goingUp = endY < startY;
         const curveRadius = Math.min(12, Math.abs(endY - startY) / 3);
-        const curveDir = goingUp ? -1 : 1; // -1 for up, +1 for down
+        const curveDir = endY < startY ? -1 : 1; // -1 for up, +1 for down
 
         // 1. Draw fork line from main line to branch start
         const forkPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -1126,8 +1138,6 @@ function generateTimeline() {
         item.isLeftSide = isLeftSide;
         item.adjustedStartY = startY;
         item.adjustedEndY = endY;
-        item.branchX = branchX;
-        item.isLeftSide = isLeftSide;
 
         // End node on branch (pulsing for "present")
         if (item.endDate === 'present') {
@@ -1144,12 +1154,11 @@ function generateTimeline() {
                                   <animate attributeName="opacity" values="0.5;0.1;0.5" dur="2s" repeatCount="indefinite"/>`;
             svg.appendChild(glowRing);
             // Position branch end node at the actual visible branch endpoint
-            const branchEndNodeY = item.endDate === 'present' ? branchEndY : branchEndY;
             const branchEndNode = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
             branchEndNode.setAttribute('cx', branchX);
-            branchEndNode.setAttribute('cy', branchEndNodeY);
+            branchEndNode.setAttribute('cy', branchEndY);
             branchEndNode.setAttribute('r', nodeRadius - 1);
-            branchEndNode.setAttribute('fill', item.endDate === 'present' ? color : '#0a0a0a');
+            branchEndNode.setAttribute('fill', color);
             branchEndNode.setAttribute('stroke', color);
             branchEndNode.setAttribute('stroke-width', '2');
             svg.appendChild(branchEndNode);
@@ -1223,14 +1232,27 @@ function generateTimeline() {
             `;
         }
 
+        // Add tabindex for keyboard accessibility
+        node.setAttribute('tabindex', '0');
+        node.setAttribute('role', 'article');
+        node.setAttribute('aria-label', `${item.title} at ${item.organization}`);
+
+        const orgLink = item.url
+            ? `<a href="${item.url}" class="node-org-link" target="_blank" rel="noopener noreferrer">${item.organization}</a>`
+            : `<span>${item.organization}</span>`;
+        const invertClass = item.invertLogo ? ' logo-invert' : '';
+        const logoHtml = item.logo && !item.logo.startsWith('assets/')
+            ? `<span class="node-logo">${item.logo}</span>`
+            : `<img class="node-logo-img${invertClass}" src="${item.logo}" alt="${item.organization} logo" width="28" height="28" loading="lazy">`;
+
         node.innerHTML = `
             <div class="node-card ${cardClass}">
                 <div class="node-header">
-                    <span class="node-logo">${item.logo}</span>
+                    ${logoHtml}
                     <span class="node-date">${formatDateRange(item.startDate, item.endDate)}</span>
                 </div>
                 <h3>${item.title}</h3>
-                <p class="node-org">${item.organization}</p>
+                <p class="node-org">${orgLink}</p>
                 <div class="node-details-preview">Hover for details...</div>
                 <div class="node-details-full">
                     <p class="node-desc">${item.description}</p>
@@ -1247,7 +1269,7 @@ function generateTimeline() {
         const connectorY = midY;
         const connectorStartX = item.branchX;
         const connectorEndX = item.isLeftSide ? cardX + cardWidth : cardX;
-        
+
         const connector = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         connector.setAttribute('x1', connectorStartX);
         connector.setAttribute('y1', connectorY);
@@ -1259,27 +1281,30 @@ function generateTimeline() {
         connector.setAttribute('opacity', '0.6');
         svg.appendChild(connector);
 
-        // Hover interaction
+        // Hover + focus interaction (keyboard accessible)
         const preview = node.querySelector('.node-details-preview');
         const full = node.querySelector('.node-details-full');
         const tagsWrapper = node.querySelector('.tags-wrapper');
         let tagsInitialized = false;
 
-        node.addEventListener('mouseenter', () => {
+        function showDetails() {
             preview.style.display = 'none';
             full.style.display = 'block';
-            
-            // Initialize tags scroll on first hover (when tags are visible)
             if (!tagsInitialized && tagsWrapper) {
                 tagsInitialized = true;
                 setTimeout(() => initSingleTagsScroll(tagsWrapper), 50);
             }
-        });
+        }
 
-        node.addEventListener('mouseleave', () => {
+        function hideDetails() {
             preview.style.display = 'block';
             full.style.display = 'none';
-        });
+        }
+
+        node.addEventListener('mouseenter', showDetails);
+        node.addEventListener('mouseleave', hideDetails);
+        node.addEventListener('focus', showDetails);
+        node.addEventListener('blur', hideDetails);
 
         cardsContainer.appendChild(node);
     });
@@ -1338,14 +1363,22 @@ function generateMobileTimeline(container) {
         const node = document.createElement('div');
         node.classList.add('timeline-node');
 
+        const mobileOrgLink = item.url
+            ? `<a href="${item.url}" class="node-org-link" target="_blank" rel="noopener noreferrer">${item.organization}</a>`
+            : `<span>${item.organization}</span>`;
+        const mobileInvertClass = item.invertLogo ? ' logo-invert' : '';
+        const mobileLogoHtml = item.logo && !item.logo.startsWith('assets/')
+            ? `<span class="node-logo">${item.logo}</span>`
+            : `<img class="node-logo-img${mobileInvertClass}" src="${item.logo}" alt="${item.organization} logo" width="36" height="36" loading="lazy">`;
+
         node.innerHTML = `
             <div class="node-card ${cardClass}">
                 <div class="node-header">
-                    <span class="node-logo">${item.logo}</span>
+                    ${mobileLogoHtml}
                     <div class="node-header-text">
                         <span class="node-date">${formatDateRange(item.startDate, item.endDate)}</span>
                         <h3>${item.title}</h3>
-                        <p class="node-org">${item.organization}</p>
+                        <p class="node-org">${mobileOrgLink}</p>
                     </div>
                 </div>
                 <div class="node-details-full">
@@ -1365,20 +1398,27 @@ function generateMobileTimeline(container) {
     container.appendChild(cardsContainer);
 }
 
-// Initialize timeline on load and handle resize
+// ============================================
+// CONSOLIDATED INIT (single DOMContentLoaded)
+// ============================================
 document.addEventListener('DOMContentLoaded', () => {
+    initContactForm();
+    initStatsInfiniteScroll();
     generateTimeline();
-    // Reinitialize tags scroll after timeline is generated
     setTimeout(initTagsInfiniteScroll, 100);
 });
 
-// Regenerate timeline on resize (debounced)
-let resizeTimeout;
+// Regenerate timeline only when crossing the 768px breakpoint (debounced)
+let lastWasMobile = window.innerWidth <= 768;
+let timelineResizeTimeout;
 window.addEventListener('resize', () => {
-    clearTimeout(resizeTimeout);
-    resizeTimeout = setTimeout(() => {
-        generateTimeline();
-        // Reinitialize tags scroll after timeline is regenerated
-        setTimeout(initTagsInfiniteScroll, 100);
+    clearTimeout(timelineResizeTimeout);
+    timelineResizeTimeout = setTimeout(() => {
+        const nowMobile = window.innerWidth <= 768;
+        if (nowMobile !== lastWasMobile) {
+            lastWasMobile = nowMobile;
+            generateTimeline();
+            setTimeout(initTagsInfiniteScroll, 100);
+        }
     }, 250);
 });

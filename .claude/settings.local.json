@@ -4,7 +4,15 @@
       "Bash(git add:*)",
       "Bash(gh --version:*)",
       "Bash(git commit:*)",
-      "Bash(node -c:*)"
+      "Bash(node -c:*)",
+      "WebSearch",
+      "WebFetch(domain:bcome.biz)",
+      "WebFetch(domain:www.iesabroad.org)",
+      "WebFetch(domain:www.salleurl.edu)",
+      "WebFetch(domain:www.weekn.app)",
+      "Bash(curl:*)",
+      "WebFetch(domain:brandfetch.com)",
+      "WebFetch(domain:en.wikipedia.org)"
     ]
   }
 }
