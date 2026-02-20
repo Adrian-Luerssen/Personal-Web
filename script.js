@@ -638,17 +638,30 @@ if (isDesktopWithMouse && !prefersReducedMotion) {
  *
  * Entry format:
  * {
- *   type: 'work' | 'education',
+ *   type: 'work' | 'education' | 'project',
  *   startDate: 'YYYY-MM' (e.g., '2024-10'),
- *   endDate: 'YYYY-MM' | 'present',
+ *   endDate: 'YYYY-MM' | 'present' (optional for projects - defaults to startDate),
  *   title: 'Position or Degree Title',
  *   organization: 'Company or Institution',
  *   description: 'Detailed description shown on hover',
  *   tags: ['Tag1', 'Tag2', 'Tag3'],
  *   logo: '🔹' or '/path/to/image.png' (emoji or image path)
  * }
+ *
+ * Projects are displayed as special highlighted milestones with gold/orange styling
+ * and a starburst effect to make them stand out from regular timeline entries.
  */
 const timelineData = [
+    {
+        type: 'project',
+        startDate: '2026-02',
+        title: 'Helix',
+        organization: 'Personal Project',
+        description: 'A revolutionary AI-powered platform designed to transform how we interact with technology.',
+        tags: ['AI', 'Full-Stack', 'Innovation'],
+        logo: '🧬',
+        url: 'https://helix-landing-eight.vercel.app/'
+    },
     {
         type: 'work',
         startDate: '2024-10',
@@ -742,10 +755,15 @@ function parseDate(dateStr) {
 
 function formatDateRange(start, end) {
     const startDate = parseDate(start);
-    const endDate = end === 'present' ? 'Present' : parseDate(end);
-
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const startStr = `${monthNames[startDate.getMonth()]} ${startDate.getFullYear()}`;
+    
+    // If no end date provided (e.g., for projects), return just the start date
+    if (!end) {
+        return startStr;
+    }
+    
+    const endDate = end === 'present' ? 'Present' : parseDate(end);
     const endStr = endDate === 'Present' ? 'Present' : `${monthNames[endDate.getMonth()]} ${endDate.getFullYear()}`;
 
     return `${startStr} - ${endStr}`;
@@ -775,7 +793,9 @@ function generateTimeline() {
     const allDates = [];
     timelineData.forEach(item => {
         allDates.push(parseDate(item.startDate));
-        allDates.push(item.endDate === 'present' ? new Date() : parseDate(item.endDate));
+        // Handle items without endDate (e.g., projects) - use startDate as endDate
+        const endDate = item.endDate ? (item.endDate === 'present' ? new Date() : parseDate(item.endDate)) : parseDate(item.startDate);
+        allDates.push(endDate);
     });
     
     const minDate = new Date(Math.min(...allDates));
@@ -817,7 +837,8 @@ function generateTimeline() {
         
         sorted.forEach(item => {
             const startDate = parseDate(item.startDate);
-            const endDate = item.endDate === 'present' ? new Date() : parseDate(item.endDate);
+            // Handle items without endDate (e.g., projects) - use startDate as endDate
+            const endDate = item.endDate ? (item.endDate === 'present' ? new Date() : parseDate(item.endDate)) : startDate;
             const startY = dateToY(startDate);
             const endY = dateToY(endDate);
             
@@ -930,6 +951,10 @@ function generateTimeline() {
             <stop offset="0%" stop-color="#3b82f6"/>
             <stop offset="100%" stop-color="#2563eb"/>
         </linearGradient>
+        <linearGradient id="projectGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#f59e0b"/>
+            <stop offset="100%" stop-color="#d97706"/>
+        </linearGradient>
         <linearGradient id="mainGradient" x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" stop-color="#555"/>
             <stop offset="100%" stop-color="#333"/>
@@ -937,6 +962,14 @@ function generateTimeline() {
         <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
             <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+        </filter>
+        <filter id="projectGlow" x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+            <feMerge>
+                <feMergeNode in="coloredBlur"/>
                 <feMergeNode in="coloredBlur"/>
                 <feMergeNode in="SourceGraphic"/>
             </feMerge>
@@ -1036,58 +1069,80 @@ function generateTimeline() {
         const branchX = isLeftSide 
             ? mainLineX - laneDistance * branchSpacing 
             : mainLineX + laneDistance * branchSpacing;
+        const isProject = item.type === 'project';
         const isWork = item.type === 'work';
-        const color = isWork ? '#10b981' : '#3b82f6';
+        const color = isProject ? '#f59e0b' : (isWork ? '#10b981' : '#3b82f6');
+        
+        // Check if this is a single-point item (project without duration)
+        const isSinglePoint = !item.endDate || startY === endY;
         
         // Determine direction: if endY < startY, branch goes UP (toward present)
-        const curveRadius = Math.min(12, Math.abs(endY - startY) / 3);
+        const curveRadius = isSinglePoint ? 12 : Math.min(12, Math.abs(endY - startY) / 3);
         const curveDir = endY < startY ? -1 : 1; // -1 for up, +1 for down
 
-        // 1. Draw fork line from main line to branch start
-        const forkPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        if (isLeftSide) {
-            forkPath.setAttribute('d', `
-                M ${mainLineX} ${startY}
-                L ${branchX + curveRadius} ${startY}
-                Q ${branchX} ${startY} ${branchX} ${startY + curveDir * curveRadius}
-            `);
+        // For single-point items (projects), draw a simple horizontal connector
+        if (isSinglePoint) {
+            // Just draw a horizontal line to the card position
+            const connectorLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            connectorLine.setAttribute('x1', mainLineX);
+            connectorLine.setAttribute('y1', startY);
+            connectorLine.setAttribute('x2', branchX);
+            connectorLine.setAttribute('y2', startY);
+            connectorLine.setAttribute('stroke', color);
+            connectorLine.setAttribute('stroke-width', isProject ? '3' : '2.5');
+            connectorLine.setAttribute('stroke-linecap', 'round');
+            svg.appendChild(connectorLine);
+            
+            // Store for card positioning
+            item.branchLineStartY = startY;
+            item.branchLineEndY = startY;
         } else {
-            forkPath.setAttribute('d', `
-                M ${mainLineX} ${startY}
-                L ${branchX - curveRadius} ${startY}
-                Q ${branchX} ${startY} ${branchX} ${startY + curveDir * curveRadius}
-            `);
+            // 1. Draw fork line from main line to branch start
+            const forkPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            if (isLeftSide) {
+                forkPath.setAttribute('d', `
+                    M ${mainLineX} ${startY}
+                    L ${branchX + curveRadius} ${startY}
+                    Q ${branchX} ${startY} ${branchX} ${startY + curveDir * curveRadius}
+                `);
+            } else {
+                forkPath.setAttribute('d', `
+                    M ${mainLineX} ${startY}
+                    L ${branchX - curveRadius} ${startY}
+                    Q ${branchX} ${startY} ${branchX} ${startY + curveDir * curveRadius}
+                `);
+            }
+            forkPath.setAttribute('stroke', color);
+            forkPath.setAttribute('stroke-width', '2.5');
+            forkPath.setAttribute('fill', 'none');
+            forkPath.setAttribute('stroke-linecap', 'round');
+            forkPath.setAttribute('stroke-linejoin', 'round');
+            svg.appendChild(forkPath);
+
+            // 2. Draw vertical branch line
+            const branchLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            const branchStartY = startY + curveDir * curveRadius;
+            // For present items, extend to a point above the top marker
+            // For ended items, account for the curve radius before merging back
+            const branchEndY = item.endDate === 'present' 
+                ? endY + curveDir * curveRadius  // Extend past the endY for visual clarity
+                : endY - curveDir * curveRadius;
+            branchLine.setAttribute('x1', branchX);
+            branchLine.setAttribute('y1', branchStartY);
+            branchLine.setAttribute('x2', branchX);
+            branchLine.setAttribute('y2', branchEndY);
+            branchLine.setAttribute('stroke', color);
+            branchLine.setAttribute('stroke-width', '2.5');
+            branchLine.setAttribute('stroke-linecap', 'round');
+            svg.appendChild(branchLine);
+            
+            // Store the actual branch line start/end for card positioning
+            item.branchLineStartY = branchStartY;
+            item.branchLineEndY = branchEndY;
         }
-        forkPath.setAttribute('stroke', color);
-        forkPath.setAttribute('stroke-width', '2.5');
-        forkPath.setAttribute('fill', 'none');
-        forkPath.setAttribute('stroke-linecap', 'round');
-        forkPath.setAttribute('stroke-linejoin', 'round');
-        svg.appendChild(forkPath);
 
-        // 2. Draw vertical branch line
-        const branchLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        const branchStartY = startY + curveDir * curveRadius;
-        // For present items, extend to a point above the top marker
-        // For ended items, account for the curve radius before merging back
-        const branchEndY = item.endDate === 'present' 
-            ? endY + curveDir * curveRadius  // Extend past the endY for visual clarity
-            : endY - curveDir * curveRadius;
-        branchLine.setAttribute('x1', branchX);
-        branchLine.setAttribute('y1', branchStartY);
-        branchLine.setAttribute('x2', branchX);
-        branchLine.setAttribute('y2', branchEndY);
-        branchLine.setAttribute('stroke', color);
-        branchLine.setAttribute('stroke-width', '2.5');
-        branchLine.setAttribute('stroke-linecap', 'round');
-        svg.appendChild(branchLine);
-
-        // Store the actual branch line start/end for card positioning
-        item.branchLineStartY = branchStartY;
-        item.branchLineEndY = branchEndY;
-
-        // 3. Draw merge line back to main (if not present)
-        if (item.endDate !== 'present') {
+        // 3. Draw merge line back to main (if not present and not a single-point item)
+        if (item.endDate && item.endDate !== 'present' && !isSinglePoint) {
             const mergePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             if (isLeftSide) {
                 // Left side: branch is left of main, curve goes right toward main
@@ -1123,15 +1178,66 @@ function generateTimeline() {
         }
 
         // Start commit node on main line (larger, with glow)
+        // For projects, create a starburst effect
+        if (isProject) {
+            // Outer starburst rays
+            const rayCount = 8;
+            const innerRadius = nodeRadius + 3;
+            const outerRadius = nodeRadius + 12;
+            for (let i = 0; i < rayCount; i++) {
+                const angle = (i * 360 / rayCount) * Math.PI / 180;
+                const x1 = mainLineX + Math.cos(angle) * innerRadius;
+                const y1 = startY + Math.sin(angle) * innerRadius;
+                const x2 = mainLineX + Math.cos(angle) * outerRadius;
+                const y2 = startY + Math.sin(angle) * outerRadius;
+                const ray = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                ray.setAttribute('x1', x1);
+                ray.setAttribute('y1', y1);
+                ray.setAttribute('x2', x2);
+                ray.setAttribute('y2', y2);
+                ray.setAttribute('stroke', color);
+                ray.setAttribute('stroke-width', '2');
+                ray.setAttribute('stroke-linecap', 'round');
+                ray.setAttribute('opacity', '0.7');
+                ray.innerHTML = `<animate attributeName="opacity" values="0.7;0.3;0.7" dur="1.5s" repeatCount="indefinite" begin="${i * 0.15}s"/>`;
+                svg.appendChild(ray);
+            }
+            
+            // Pulsing outer ring
+            const pulseRing = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            pulseRing.setAttribute('cx', mainLineX);
+            pulseRing.setAttribute('cy', startY);
+            pulseRing.setAttribute('r', nodeRadius + 6);
+            pulseRing.setAttribute('fill', 'none');
+            pulseRing.setAttribute('stroke', color);
+            pulseRing.setAttribute('stroke-width', '2');
+            pulseRing.innerHTML = `<animate attributeName="r" values="${nodeRadius + 4};${nodeRadius + 10};${nodeRadius + 4}" dur="2s" repeatCount="indefinite"/>
+                                   <animate attributeName="opacity" values="0.8;0.2;0.8" dur="2s" repeatCount="indefinite"/>`;
+            svg.appendChild(pulseRing);
+        }
+        
         const startCommit = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         startCommit.setAttribute('cx', mainLineX);
         startCommit.setAttribute('cy', startY);
-        startCommit.setAttribute('r', nodeRadius + 1);
+        startCommit.setAttribute('r', isProject ? nodeRadius + 3 : nodeRadius + 1);
         startCommit.setAttribute('fill', color);
         startCommit.setAttribute('stroke', '#0a0a0a');
         startCommit.setAttribute('stroke-width', '2');
-        startCommit.style.filter = 'url(#glow)';
+        startCommit.style.filter = isProject ? 'url(#projectGlow)' : 'url(#glow)';
         svg.appendChild(startCommit);
+        
+        // Add star icon for projects
+        if (isProject) {
+            const star = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            star.setAttribute('x', mainLineX);
+            star.setAttribute('y', startY + 1);
+            star.setAttribute('text-anchor', 'middle');
+            star.setAttribute('dominant-baseline', 'middle');
+            star.setAttribute('fill', '#0a0a0a');
+            star.setAttribute('font-size', '8');
+            star.textContent = '★';
+            svg.appendChild(star);
+        }
 
         // Store branchX for card placement
         item.branchX = branchX;
@@ -1140,11 +1246,12 @@ function generateTimeline() {
         item.adjustedEndY = endY;
 
         // End node on branch (pulsing for "present")
-        if (item.endDate === 'present') {
+        if (item.endDate === 'present' && !isSinglePoint) {
+            const branchEndYPos = item.branchLineEndY;
             // Outer glow ring for present items - positioned at visible branch end
             const glowRing = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
             glowRing.setAttribute('cx', branchX);
-            glowRing.setAttribute('cy', branchEndY);
+            glowRing.setAttribute('cy', branchEndYPos);
             glowRing.setAttribute('r', nodeRadius + 4);
             glowRing.setAttribute('fill', 'none');
             glowRing.setAttribute('stroke', color);
@@ -1156,7 +1263,7 @@ function generateTimeline() {
             // Position branch end node at the actual visible branch endpoint
             const branchEndNode = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
             branchEndNode.setAttribute('cx', branchX);
-            branchEndNode.setAttribute('cy', branchEndY);
+            branchEndNode.setAttribute('cy', branchEndYPos);
             branchEndNode.setAttribute('r', nodeRadius - 1);
             branchEndNode.setAttribute('fill', color);
             branchEndNode.setAttribute('stroke', color);
@@ -1182,9 +1289,10 @@ function generateTimeline() {
 
     // Create cards for each item
     itemsWithLanes.forEach(item => {
+        const isProject = item.type === 'project';
         const isWork = item.type === 'work';
-        const cardClass = isWork ? 'work-card' : 'edu-card';
-        const color = isWork ? '#10b981' : '#3b82f6';
+        const cardClass = isProject ? 'project-card-timeline' : (isWork ? 'work-card' : 'edu-card');
+        const color = isProject ? '#f59e0b' : (isWork ? '#10b981' : '#3b82f6');
         
         // Use the actual branch line positions for centering
         const branchStartY = item.branchLineStartY;
@@ -1323,6 +1431,10 @@ function generateTimeline() {
             <span class="legend-dot edu-dot"></span>
             <span>Education</span>
         </div>
+        <div class="legend-item">
+            <span class="legend-dot project-dot"></span>
+            <span>Projects</span>
+        </div>
     `;
     container.insertBefore(legend, container.firstChild);
 }
@@ -1348,6 +1460,10 @@ function generateMobileTimeline(container) {
             <span class="legend-dot edu-dot"></span>
             <span>Education</span>
         </div>
+        <div class="legend-item">
+            <span class="legend-dot project-dot"></span>
+            <span>Projects</span>
+        </div>
     `;
     container.appendChild(legend);
 
@@ -1357,8 +1473,9 @@ function generateMobileTimeline(container) {
 
     // Create simple card for each item
     sortedData.forEach(item => {
+        const isProject = item.type === 'project';
         const isWork = item.type === 'work';
-        const cardClass = isWork ? 'work-card' : 'edu-card';
+        const cardClass = isProject ? 'project-card-timeline' : (isWork ? 'work-card' : 'edu-card');
 
         const node = document.createElement('div');
         node.classList.add('timeline-node');
