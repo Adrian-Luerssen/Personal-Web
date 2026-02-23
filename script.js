@@ -545,8 +545,14 @@ const observer = new IntersectionObserver((entries) => {
     });
 }, observerOptions);
 
-// Observe all sections for animations
+// Observe all sections for animations (except hero - it's always visible on load)
 document.querySelectorAll('section').forEach(section => {
+    // Skip hero section - it's immediately visible and shouldn't have scroll-triggered animation
+    if (section.classList.contains('hero')) {
+        section.style.opacity = '1';
+        return;
+    }
+    
     if (prefersReducedMotion) {
         section.style.opacity = '1';
     } else {
@@ -1290,7 +1296,7 @@ function generateTimeline() {
     cardsContainer.style.top = `${legendHeight}px`; // Position below legend
     cardsContainer.style.width = '100%';
     cardsContainer.style.height = `${timelineHeight}px`;
-    cardsContainer.style.zIndex = '2';
+    cardsContainer.style.zIndex = '2'; // Above SVG (1), below legend (200)
     cardsContainer.style.pointerEvents = 'none'; // Allow clicks to pass through to cards
 
     // Create cards for each item
