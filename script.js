@@ -545,8 +545,14 @@ const observer = new IntersectionObserver((entries) => {
     });
 }, observerOptions);
 
-// Observe all sections for animations
+// Observe all sections for animations (except hero - it's always visible on load)
 document.querySelectorAll('section').forEach(section => {
+    // Skip hero section - it's immediately visible and shouldn't have scroll-triggered animation
+    if (section.classList.contains('hero')) {
+        section.style.opacity = '1';
+        return;
+    }
+    
     if (prefersReducedMotion) {
         section.style.opacity = '1';
     } else {
