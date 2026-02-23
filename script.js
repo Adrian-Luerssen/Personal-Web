@@ -654,7 +654,7 @@ if (isDesktopWithMouse && !prefersReducedMotion) {
 const timelineData = [
     {
         type: 'project',
-        startDate: '2026-02',
+        startDate: '2026-02-23',
         title: 'Helix',
         organization: 'Personal Project',
         description: 'A revolutionary AI-powered platform designed to transform how we interact with technology.',
