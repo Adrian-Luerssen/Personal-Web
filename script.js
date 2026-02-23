@@ -1290,7 +1290,7 @@ function generateTimeline() {
     cardsContainer.style.top = `${legendHeight}px`; // Position below legend
     cardsContainer.style.width = '100%';
     cardsContainer.style.height = `${timelineHeight}px`;
-    cardsContainer.style.zIndex = '2';
+    cardsContainer.style.zIndex = '2'; // Above SVG (1), below legend (200)
     cardsContainer.style.pointerEvents = 'none'; // Allow clicks to pass through to cards
 
     // Create cards for each item
