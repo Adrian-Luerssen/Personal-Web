@@ -759,7 +759,8 @@ section {
     border: 1px solid var(--border-color);
     position: sticky;
     top: 80px; /* Below fixed navbar */
-    z-index: 200; /* Must be higher than timeline-nodes (z-index: 2) to stay above expanded cards */
+    z-index: 999; /* High z-index ensures legend stays above all expanded cards */
+    isolation: isolate; /* Create dedicated stacking context for legend */
 }
 
 .legend-item {
@@ -1613,7 +1614,8 @@ section {
         margin-bottom: 1.5rem;
         position: sticky;
         top: 70px; /* Below mobile navbar */
-        z-index: 200; /* Must be higher than timeline-nodes to stay above expanded cards */
+        z-index: 999; /* High z-index ensures legend stays above all expanded cards */
+        isolation: isolate; /* Create dedicated stacking context for legend */
     }
 
     .legend-item {
