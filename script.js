@@ -484,9 +484,15 @@ window.addEventListener('scroll', () => {
             }
 
             // Parallax (desktop only)
-            if (heroContent && currentScroll < window.innerHeight) {
-                heroContent.style.transform = `translateY(${currentScroll * 0.3}px)`;
-                heroContent.style.opacity = 1 - (currentScroll / window.innerHeight) * 0.5;
+            if (heroContent) {
+                if (currentScroll < window.innerHeight) {
+                    heroContent.style.transform = `translateY(${currentScroll * 0.3}px)`;
+                    heroContent.style.opacity = 1 - (currentScroll / window.innerHeight) * 0.5;
+                } else {
+                    // Clamp to final values when past threshold for continuity
+                    heroContent.style.transform = `translateY(${window.innerHeight * 0.3}px)`;
+                    heroContent.style.opacity = 0.5;
+                }
             }
 
             // Active nav link
