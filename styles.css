@@ -10,6 +10,7 @@
     --accent-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
     --border-color: #222222;
     --card-bg: #141414;
+    --card-bg-rgb: 20, 20, 20; /* RGB values for semi-transparent backgrounds */
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     /* Safe area insets for notched devices */
     --safe-area-top: env(safe-area-inset-top, 0px);
@@ -751,11 +752,15 @@ section {
     gap: 2rem;
     margin-bottom: 2rem;
     padding: 1rem 1.5rem;
-    background: var(--card-bg);
+    background: rgba(var(--card-bg-rgb, 15, 23, 42), 0.95);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border-radius: 8px;
     border: 1px solid var(--border-color);
-    position: relative;
+    position: sticky;
+    top: 80px; /* Below fixed navbar */
     z-index: 100; /* Higher than timeline cards (z-index: 10) to prevent overlap */
+    isolation: isolate; /* Create own stacking context */
 }
 
 .legend-item {
@@ -1601,12 +1606,16 @@ section {
         justify-content: center;
         gap: 1.5rem;
         padding: 0.875rem 1rem;
-        background: var(--card-bg);
+        background: rgba(var(--card-bg-rgb), 0.95);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
         border-radius: 12px;
         border: 1px solid var(--border-color);
         margin-bottom: 1.5rem;
-        position: relative;
+        position: sticky;
+        top: 70px; /* Below mobile navbar */
         z-index: 100; /* Ensure legend stays above timeline cards on mobile */
+        isolation: isolate;
     }
 
     .legend-item {
